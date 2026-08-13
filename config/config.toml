@@ -1,0 +1,49 @@
+[general]
+max_history = 750
+pin_storage = "~/.local/share/edClipManager/pins.json"
+image_label_format = "[{mime} - {size}]"
+
+[theme.window]
+background = "#1e1e2e"
+border = "#89b4fa"
+title_fg = "#cdd6f4"
+title_bg = "#1e1e2e"
+
+[theme.search]
+border_active = "#f9e2af"
+border_inactive = "#45475a"
+input_fg = "#cdd6f4"
+input_bg = "#1e1e2e"
+placeholder_fg = "#6c7086"
+
+[theme.tabs]
+active_fg = "#1e1e2e"
+active_bg = "#89b4fa"
+inactive_fg = "#a6adc8"
+inactive_bg = "#313244"
+
+[theme.list]
+item_fg = "#f9e2af"
+item_bg = "#1e1e2e"
+selected_fg = "#000000"
+selected_bg = "#89dceb"
+marked_fg = "#1e1e2e"
+marked_bg = "#cba6f7"
+pin_indicator = "#a6e3a1"
+image_label = "#fab387"
+border = "#45475a"
+
+[theme.statusbar]
+background = "#181825"
+bracket_fg = "#585b70"
+key_fg = "#f9e2af"
+label_fg = "#a6adc8"
+separator_fg = "#45475a"
+
+[theme.dialog]
+border = "#f38ba8"
+title_fg = "#f38ba8"
+message_fg = "#cdd6f4"
+background = "#1e1e2e"
+yes_fg = "#a6e3a1"
+no_fg = "#f38ba8"

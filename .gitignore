@@ -1,0 +1,13 @@
+/target
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Local / generated files
+repomix-output.*
+.ai_context_manual.cache
+
+# Local / generated files
+repomix-output.*
+.ai_context_manual.cache
