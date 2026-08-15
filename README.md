@@ -1,6 +1,6 @@
 # edClipManager
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange?logo=rust)
 ![Platform](https://img.shields.io/badge/platform-Linux-1793D1?logo=linux)
 ![Display](https://img.shields.io/badge/display-Wayland-6E56CF)
@@ -9,6 +9,11 @@
 ![Backend](https://img.shields.io/badge/backend-cliphist-2ea44f)
 
 A terminal UI clipboard manager for Wayland using `cliphist`, built with Rust + Ratatui and designed to integrate cleanly with Hyprland.
+
+Supports both:
+
+- traditional Hyprland `.conf` configs
+- Lua-based Hyprland configs such as **Omarchy**
 
 ---
 
@@ -24,6 +29,7 @@ A terminal UI clipboard manager for Wayland using `cliphist`, built with Rust + 
 - 🎨 Theme and behavior configuration via TOML
 - ❓ Built-in help screen
 - 🧹 Installer and uninstaller scripts included
+- 🔄 Hyprland integration for both `.conf` and `.lua`
 
 ---
 
@@ -48,7 +54,7 @@ A terminal UI clipboard manager for Wayland using `cliphist`, built with Rust + 
 | `cliphist` | Yes | Clipboard history backend |
 | `wl-copy` | Yes | Copy data back to Wayland clipboard |
 | `wl-paste` | Yes | Watch clipboard changes for `cliphist store` |
-| `kitty` | Yes | Floating terminal window launcher |
+| `kitty` | Yes | Floating terminal launcher |
 | `hyprctl` | Yes | Reload Hyprland after config changes |
 | `cargo` | Build only | Build the Rust binary |
 
@@ -83,11 +89,13 @@ The installer will:
 - check or install Rust toolchain
 - build the release binary
 - install the binary to `~/.local/bin/edclipmanager`
+- install a helper watcher script for `cliphist`
 - install default config to `~/.config/edClipManager/config.toml`
-- create pin storage in `~/.local/share/edClipManager/pins.json`
-- add Hyprland autostart entries
-- add Hyprland keybinding
-- add Hyprland window rules
+- create pin storage at `~/.local/share/edClipManager/pins.json`
+- detect Hyprland config mode (`.conf` or `.lua`)
+- write managed Hyprland blocks
+- start `cliphist` watchers immediately
+- reload Hyprland
 
 ### Option 2 — Manual build
 
@@ -113,7 +121,7 @@ edclipmanager
 
 ### Launch via Hyprland keybinding
 
-After installation, the default launcher is:
+Default launcher:
 
 - `Super + Ctrl + V`
 
@@ -231,47 +239,129 @@ no_fg = "#f38ba8"
 | Item | Path |
 |---|---|
 | Binary | `~/.local/bin/edclipmanager` |
+| Watcher helper | `~/.local/bin/edclipmanager-cliphist-watch` |
 | Config | `~/.config/edClipManager/config.toml` |
 | Pin storage | `~/.local/share/edClipManager/pins.json` |
 | Cliphist database | `~/.cache/cliphist/db` |
-| Hyprland keybinding | `~/.config/hypr/bindings.conf` |
-| Hyprland autostart | `~/.config/hypr/autostart.conf` |
-| Hyprland window rules | `~/.config/hypr/hyprland.conf` |
+
+### Hyprland integration targets
+
+| Item | `.conf` mode | `.lua` mode |
+|---|---|---|
+| Autostart | `~/.config/hypr/autostart.conf` | `~/.config/hypr/autostart.lua` |
+| Keybinding | `~/.config/hypr/bindings.conf` | `~/.config/hypr/bindings.lua` |
+| Window rules | `~/.config/hypr/hyprland.conf` | `~/.config/hypr/looknfeel.lua` |
 
 ---
 
 ## 🪟 Hyprland Integration
 
-The installer adds three managed blocks marked with:
+The installer writes **managed blocks** so re-install and uninstall stay clean.
+
+### `.conf` mode
+
+Markers:
 
 ```text
 # edClipManager-Begin
 # edClipManager-End
 ```
 
-### Autostart block
+<details>
+<summary><strong>Autostart block (.conf)</strong></summary>
 
 ```conf
-exec-once = wl-paste --type text --watch cliphist store
-exec-once = wl-paste --type image --watch cliphist store
+# edClipManager-Begin
+exec-once = /home/USER/.local/bin/edclipmanager-cliphist-watch
+# edClipManager-End
 ```
 
-### Keybinding block
+</details>
+
+<details>
+<summary><strong>Keybinding block (.conf)</strong></summary>
 
 ```conf
+# edClipManager-Begin
 unbind = SUPER CTRL, V
-bind = SUPER CTRL, V, exec, kitty --class edClipManager --title edClipManager --override close_on_child_death=yes -e edclipmanager
+bind = SUPER CTRL, V, exec, kitty --class edClipManager --title edClipManager --override close_on_child_death=yes -e /home/USER/.local/bin/edclipmanager
+# edClipManager-End
 ```
 
-### Window rules block
+</details>
+
+<details>
+<summary><strong>Window rules block (.conf)</strong></summary>
 
 ```conf
+# edClipManager-Begin
 windowrule = float on, match:title ^(edClipManager)$
 windowrule = center on, match:title ^(edClipManager)$
 windowrule = size 800 600, match:title ^(edClipManager)$
+# edClipManager-End
 ```
 
-> **Important:** keybindings are written to `~/.config/hypr/bindings.conf`.
+</details>
+
+### `.lua` mode / Omarchy
+
+Markers:
+
+```text
+-- BEGIN-edClipManager-autostart
+-- END-edClipManager-autostart
+-- edClipManager-Begin
+-- edClipManager-End
+```
+
+<details>
+<summary><strong>Autostart block (.lua)</strong></summary>
+
+```lua
+-- BEGIN-edClipManager-autostart
+o.launch_on_start("/home/USER/.local/bin/edclipmanager-cliphist-watch")
+-- END-edClipManager-autostart
+```
+
+</details>
+
+<details>
+<summary><strong>Keybinding block (.lua)</strong></summary>
+
+```lua
+-- edClipManager-Begin
+hl.unbind("SUPER + CTRL + V")
+hl.bind(
+    "SUPER + CTRL + V",
+    hl.dsp.exec_cmd("kitty --class edclipmanager-float --override close_on_child_death=yes -e /home/USER/.local/bin/edclipmanager")
+)
+-- edClipManager-End
+```
+
+</details>
+
+<details>
+<summary><strong>Window rules block (.lua)</strong></summary>
+
+```lua
+-- edClipManager-Begin
+hl.window_rule({
+    name = "EdClipManager Floating TUI",
+    match = {
+        class = "edclipmanager-float",
+    },
+    float = true,
+    size = { 900, 600 },
+    center = true,
+    dim_around = true,
+    stay_focused = true,
+})
+-- edClipManager-End
+```
+
+</details>
+
+> **Important:** Keybindings are written to `bindings.conf` or `bindings.lua`, never to `hyprland.conf`.
 
 Reload Hyprland after install/uninstall:
 
@@ -284,12 +374,15 @@ hyprctl reload
 ## 🧠 How It Works
 
 - `cliphist list` provides clipboard entries
-- `cliphist decode <id>` restores full item contents
+- `cliphist decode` restores full item contents
 - `wl-copy` writes data back to the Wayland clipboard
-- Pinned items are stored in JSON via `serde_json`
+- a helper watcher script runs `wl-paste --watch cliphist store`
+- pinned items are stored in JSON via `serde_json`
 - UI state is managed centrally in `src/app.rs`
-- Keyboard events are handled in `src/event.rs`
-- Rendering is split into dedicated UI modules under `src/ui/`
+- keyboard events are handled in `src/event.rs`
+- rendering is split into dedicated UI modules under `src/ui/`
+
+> **Omarchy note:** Omarchy ships its own clipboard watcher plugin, but it does not feed `cliphist` directly for this app's needs. `edClipManager` installs a dedicated `cliphist` watcher alongside it.
 
 ---
 
@@ -361,13 +454,16 @@ bash scripts/uninstall.sh
 The uninstaller can remove:
 
 - installed binary
+- watcher helper script
 - config directory
 - data directory
 - Hyprland autostart block
 - Hyprland keybinding block
 - Hyprland window rule block
 
-Then reload Hyprland:
+It checks both `.conf` and `.lua` Hyprland layouts.
+
+After uninstall:
 
 ```bash
 hyprctl reload
@@ -379,10 +475,11 @@ hyprctl reload
 
 - Linux only
 - Wayland only
-- Designed for Hyprland integration
+- designed for Hyprland integration
 - `cliphist` is required for clipboard history features
-- Pinned text entries are stored with full text content in JSON
-- Image pins still depend on the original `cliphist` item ID for clipboard restoration
+- pinned text entries are stored with full text content in JSON
+- image pins still depend on the original `cliphist` item ID for clipboard restoration
+- Omarchy users need the dedicated `cliphist` watcher installed by this project
 
 ---
 
@@ -421,6 +518,7 @@ cargo run
 | Help screen | Built-in |
 | Theming | TOML-based |
 | Hyprland launcher | Included |
+| `.lua` / Omarchy support | Included |
 
 ---
 
@@ -429,6 +527,7 @@ cargo run
 Issues and improvements are welcome. When proposing changes, keep these constraints in mind:
 
 - stay compatible with Wayland
-- preserve Hyprland keybinding integration in `bindings.conf`
-- avoid introducing unnecessary external dependencies
+- preserve Hyprland keybinding integration
+- support both `.conf` and `.lua` Hyprland configurations
+- avoid unnecessary external dependencies
 - keep the TUI workflow fast and keyboard-first

@@ -142,6 +142,8 @@ pub fn copy_to_clipboard(id: &str) -> bool {
 
     let mut wl_copy = match Command::new("wl-copy")
         .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()
     {
         Ok(c) => c,
@@ -163,6 +165,8 @@ pub fn copy_text_to_clipboard(content: &str) -> bool {
 
     let mut child = match Command::new("wl-copy")
         .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()
     {
         Ok(c) => c,
