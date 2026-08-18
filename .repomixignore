@@ -1,0 +1,8 @@
+target/
+.git/
+repomix-output.xml
+.ai_context_manual.cache
+*.swp
+*.swo
+*~
+AI_CONTEXT.md

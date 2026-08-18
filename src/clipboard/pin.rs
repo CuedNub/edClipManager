@@ -22,8 +22,12 @@ impl PinStorage {
     pub fn load(path: &PathBuf) -> Self {
         if path.exists() {
             match fs::read_to_string(path) {
-                Ok(content) => match serde_json::from_str(&content) {
-                    Ok(storage) => return storage,
+                Ok(content) => match serde_json::from_str::<PinStorage>(&content) {
+                    Ok(mut storage) => {
+                        // Mengurutkan item dari yang paling baru ke yang paling lama
+                        storage.pins.sort_by(|a, b| b.pinned_at.cmp(&a.pinned_at));
+                        return storage;
+                    }
                     Err(_) => {}
                 },
                 Err(_) => {}
@@ -55,7 +59,8 @@ impl PinStorage {
             cliphist::decode_text(&item.id).unwrap_or_else(|| item.content.clone())
         };
 
-        self.pins.push(PinnedItem {
+        // Menggunakan insert di index 0 agar item baru selalu berada di atas
+        self.pins.insert(0, PinnedItem {
             cliphist_id: item.id.clone(),
             content,
             is_image: item.is_image,

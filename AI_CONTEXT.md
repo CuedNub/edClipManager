@@ -8,45 +8,71 @@
 
 | Komponen | Detail |
 |---|---|
-| **OS** | Arch Linux |
-| **Window Manager** | Hyprland |
+| **OS** | Omarchy (Arch-based Linux) |
+| **Kernel** | `7.1.8-arch1-3` |
+| **Window Manager** | Hyprland `v0.56.2` |
 | **Display Protocol** | Wayland |
 | **Shell** | Bash |
 | **Terminal** | Kitty |
+| **User** | `tobdeuc` |
 | **Home Directory** | `/home/tobdeuc` |
 
 ---
 
-## 2. Konfigurasi Hyprland
+## 2. Cara User Memberikan Konteks ke AI
 
-Aplikasi ini memodifikasi 3 file Hyprland saat instalasi. Setiap blok ditandai dengan komentar `# edClipManager-Begin` dan `# edClipManager-End`.
+Repository ini memakai dua sumber konteks utama saat sesi AI baru:
+
+1. **`AI_CONTEXT.md`** → aturan sistem, arsitektur, hard rules, preferensi bantuan
+2. **`repomix-output.xml`** → snapshot isi repository
+
+### Penting
+- File **`AI_CONTEXT.md` sengaja tidak dimasukkan** ke `repomix-output.xml`
+- Repository memakai **`.repomixignore`** agar `AI_CONTEXT.md` tetap ikut dipush ke git, tetapi tidak ikut dipaketkan oleh Repomix
+- Karena itu, pada sesi AI baru, user biasanya akan:
+  1. paste `AI_CONTEXT.md` lebih dulu
+  2. lalu paste `repomix-output.xml`
+
+### Implikasi untuk AI
+- **Jangan** menganggap `repomix-output.xml` sudah memuat konteks sistem
+- **Selalu prioritaskan isi `AI_CONTEXT.md` ini** jika diberikan bersamaan dengan repomix
+
+---
+
+## 3. Konfigurasi Hyprland
+
+### File Hyprland yang relevan di sistem ini
 
 | Fungsi | File | Boleh Dimodifikasi oleh AI? |
 |---|---|---|
 | **Keybinding** | `~/.config/hypr/bindings.conf` | ✅ Ya — **HANYA di file ini** |
-| **Autostart** | `~/.config/hypr/autostart.conf` | ✅ Ya — hanya blok edClipManager |
-| **Window Rules** | `~/.config/hypr/hyprland.conf` | ⚠️ Hanya window rules blok edClipManager |
+| **Autostart** | `~/.config/hypr/autostart.conf` | ✅ Ya — hanya blok `edClipManager` |
+| **Window Rules** | `~/.config/hypr/hyprland.conf` | ⚠️ Hanya blok `edClipManager` |
 
-### Keybinding Aktif
+### Aturan keybinding Hyprland
+- Jika ada fitur yang memerlukan shortcut/keybinding Hyprland, keybinding tersebut **HANYA BOLEH** ditulis di:
+  - `~/.config/hypr/bindings.conf`
+- **DILARANG** menulis keybinding ke:
+  - `~/.config/hypr/hyprland.conf`
 
+### Managed block yang digunakan installer (`.conf` mode)
+
+#### Keybinding
 ```conf
 # edClipManager-Begin
 unbind = SUPER CTRL, V
-bind = SUPER CTRL, V, exec, kitty --class edClipManager --title edClipManager --override close_on_child_death=yes -e edclipmanager
+bind = SUPER CTRL, V, exec, kitty --class edClipManager --title edClipManager --override close_on_child_death=yes -e /home/tobdeuc/.local/bin/edclipmanager
 # edClipManager-End
 ```
 
-### Autostart Aktif
-
+#### Autostart
 ```conf
 # edClipManager-Begin
-exec-once = wl-paste --type text --watch cliphist store
-exec-once = wl-paste --type image --watch cliphist store
+exec-once = /home/tobdeuc/.local/bin/edclipmanager-cliphist-watch
 # edClipManager-End
 ```
 
-### Window Rules Aktif
-
+#### Window rules
 ```conf
 # edClipManager-Begin
 windowrule = float on, match:title ^(edClipManager)$
@@ -55,67 +81,53 @@ windowrule = size 800 600, match:title ^(edClipManager)$
 # edClipManager-End
 ```
 
-### ⚠️ ATURAN KEYBINDING
-
-- Jika ada fitur yang memerlukan shortcut/keybinding Hyprland, keybinding tersebut **HANYA BOLEH** ditulis di: `~/.config/hypr/bindings.conf`
-- **DILARANG** menulis keybinding di `~/.config/hypr/hyprland.conf` — akan menyebabkan error di sistem ini.
+### Catatan
+- Script installer/uninstaller juga mendukung layout Hyprland berbasis **`.lua` / Omarchy**
+- Namun, **untuk sistem user ini**, default path yang harus diprioritaskan adalah file `.conf` di atas **kecuali user memberikan file live lain secara eksplisit**
 
 ---
 
-## 3. Tentang Aplikasi
+## 4. Tentang Aplikasi
 
-**edClipManager** adalah aplikasi TUI clipboard manager untuk Wayland yang menggunakan `cliphist` sebagai backend penyimpanan clipboard history.
+**edClipManager** adalah aplikasi TUI clipboard manager untuk Wayland yang menggunakan `cliphist` sebagai backend clipboard history.
 
 ### Fitur Utama
-
-- Menampilkan clipboard history dari `cliphist` dalam antarmuka TUI
-- Pencarian/filter real-time (ketik langsung tanpa mode khusus)
-- Sistem pin: menyimpan item clipboard secara permanen ke file JSON
-- Multi-select (mark) untuk operasi batch (pin/delete)
-- Mendukung teks dan gambar (binary data)
-- Copy item yang dipilih ke clipboard lalu otomatis keluar
+- Menampilkan clipboard history dari `cliphist`
+- Pencarian/filter real-time tanpa mode khusus
+- Dua tab: **Clipboard** dan **Pin**
+- Multi-select (mark) untuk operasi batch
+- Mendukung teks dan gambar
+- Copy item terpilih ke clipboard lalu otomatis keluar
 - Delete individual, batch, atau wipe all
-- Dua tab: Clipboard (history) dan Pin (tersimpan)
 - Dialog konfirmasi untuk delete all
-- Halaman help built-in
-- Tema berbasis config TOML (Catppuccin-style)
-- Install/uninstall script dengan integrasi Hyprland otomatis
+- Built-in help screen
+- Tema berbasis config TOML
+- Installer dan uninstaller dengan integrasi Hyprland
+- Mendukung layout Hyprland `.conf` dan `.lua`
+- **Pin disort dari terbaru ke terlama** berdasarkan `pinned_at`
 
-### Keybinding Aplikasi (Internal TUI)
-
-| Key | Fungsi |
-|---|---|
-| `Ctrl+j` / `Ctrl+k` | Navigasi atas/bawah |
-| `↓` / `↑` | Navigasi atas/bawah |
-| `Enter` | Copy item terpilih ke clipboard & keluar |
-| `Ctrl+Space` | Toggle mark (multi-select) |
-| `Ctrl+p` | Pin / unpin item (atau semua yang di-mark) |
-| `Ctrl+d` | Delete item terpilih (atau semua yang di-mark) |
-| `Ctrl+Alt+d` | Delete semua item di tab aktif (dengan konfirmasi) |
-| `Tab` | Switch tab Clipboard / Pin |
-| `Ctrl+h` | Toggle help |
-| `Esc` / `q` | Keluar aplikasi (atau tutup dialog) |
-| `←` / `→` | Geser kursor pencarian |
-| `Backspace` / `Delete` | Hapus karakter pencarian |
-| Ketik karakter | Filter pencarian (selalu aktif) |
+### Perilaku pin yang penting
+- Saat user menekan `Ctrl+p`, item akan dipin/unpin
+- Untuk item teks, pin menyimpan **konten lengkap**, bukan hanya preview dari `cliphist list`
+- Tab **Pin** harus menampilkan item **terbaru di atas**
+- Sorting pin mengandalkan field `pinned_at`
 
 ---
 
-## 4. Tech Stack
+## 5. Tech Stack
 
 | Komponen | Detail |
 |---|---|
 | **Bahasa** | Rust (Edition 2021) |
 | **Binary Name** | `edclipmanager` |
-| **TUI Framework** | Ratatui 0.29 |
-| **Terminal Backend** | Crossterm 0.28 |
-| **Serialization** | serde 1 + serde_json 1 |
-| **Config Parser** | toml 0.8 |
-| **Directory Resolver** | dirs 5 |
-| **Date/Time** | chrono 0.4 |
+| **TUI Framework** | Ratatui `0.29` |
+| **Terminal Backend** | Crossterm `0.28` |
+| **Serialization** | `serde` + `serde_json` |
+| **Config Parser** | `toml` |
+| **Directory Resolver** | `dirs` |
+| **Date/Time** | `chrono` |
 
-### Release Profile
-
+### Release profile
 ```toml
 [profile.release]
 opt-level = "z"
@@ -125,57 +137,72 @@ strip = true
 
 ---
 
-## 5. System Dependencies (Wajib Terinstall)
+## 6. System Dependencies
 
-| Package | Fungsi dalam Aplikasi |
+### Wajib untuk aplikasi
+| Package | Fungsi |
 |---|---|
-| `cliphist` | Backend clipboard history (list, decode, delete, wipe) |
+| `cliphist` | Backend clipboard history |
 | `wl-copy` | Mengirim data ke Wayland clipboard |
-| `wl-paste` | Monitor clipboard via `cliphist store` (autostart) |
-| `kitty` | Terminal emulator untuk floating window |
-| `hyprctl` | Reload konfigurasi Hyprland setelah install |
+| `wl-paste` | Watch clipboard untuk `cliphist store` |
+| `kitty` | Terminal launcher untuk floating window |
+| `hyprctl` | Reload konfigurasi Hyprland |
+
+### Tool sistem lain yang boleh diasumsikan ada
+- `grim`
+- `slurp`
+- `fuzzel`
+- `notify-send`
+
+### Larangan penting
+Walaupun beberapa tool X11 mungkin terinstall di sistem, **AI tetap dilarang menyarankan tool X11** untuk proyek ini.
 
 ---
 
-## 6. Struktur Proyek
+## 7. Struktur Proyek
 
-```
+```text
 edClipManager/
-├── config/
-│   └── config.toml              # Default config (theme + general settings)
-├── scripts/
-│   ├── install.sh               # Installer (build, binary, config, Hyprland integration)
-│   └── uninstall.sh             # Uninstaller (cleanup semua yang di-install)
-├── src/
-│   ├── clipboard/
-│   │   ├── mod.rs               # Module declaration
-│   │   ├── cliphist.rs          # Interface ke cliphist CLI (list, decode, copy, delete, wipe)
-│   │   └── pin.rs               # Pin storage (load/save JSON, pin/unpin, CRUD)
-│   ├── config/
-│   │   ├── mod.rs               # Config loader (TOML parser, path resolver)
-│   │   └── theme.rs             # Hex color parser → ratatui Style/Color
-│   ├── ui/
-│   │   ├── mod.rs               # Layout utama (search + tabs + list + statusbar + dialog + help)
-│   │   ├── search.rs            # Search box widget dengan cursor
-│   │   ├── tabs.rs              # Tab switcher (Clipboard / Pin)
-│   │   ├── list.rs              # List widget (items, selection, mark, pin indicator, truncation)
-│   │   ├── statusbar.rs         # Status bar (keybinding hints + marked count)
-│   │   ├── dialog.rs            # Dialog konfirmasi delete all
-│   │   └── help.rs              # Halaman help (keybinding, paths, dependencies)
-│   ├── app.rs                   # Application state & logic (filter, navigation, copy, pin, delete)
-│   ├── event.rs                 # Event handler (keyboard input → app actions per mode)
-│   └── main.rs                  # Entry point (terminal setup, main loop)
+├── AI_CONTEXT.md
+├── Cargo.lock
+├── Cargo.toml
+├── README.md
 ├── .gitignore
-└── Cargo.toml
+├── .repomixignore
+├── config/
+│   └── config.toml
+├── scripts/
+│   ├── install.sh
+│   └── uninstall.sh
+└── src/
+    ├── app.rs
+    ├── clipboard/
+    │   ├── cliphist.rs
+    │   ├── mod.rs
+    │   └── pin.rs
+    ├── config/
+    │   ├── mod.rs
+    │   └── theme.rs
+    ├── event.rs
+    ├── main.rs
+    └── ui/
+        ├── dialog.rs
+        ├── help.rs
+        ├── list.rs
+        ├── mod.rs
+        ├── search.rs
+        ├── statusbar.rs
+        └── tabs.rs
 ```
 
 ---
 
-## 7. File Paths di Sistem
+## 8. File Paths di Sistem
 
 | Item | Path |
 |---|---|
 | **Binary** | `~/.local/bin/edclipmanager` |
+| **Watcher Helper** | `~/.local/bin/edclipmanager-cliphist-watch` |
 | **Config** | `~/.config/edClipManager/config.toml` |
 | **Pin Storage** | `~/.local/share/edClipManager/pins.json` |
 | **Clipboard DB** | `~/.cache/cliphist/db` |
@@ -183,67 +210,166 @@ edClipManager/
 | **Hypr Autostart** | `~/.config/hypr/autostart.conf` |
 | **Hypr Window Rules** | `~/.config/hypr/hyprland.conf` |
 
+### Path Hyprland alternatif yang didukung script
+| Item | `.lua` mode |
+|---|---|
+| **Autostart** | `~/.config/hypr/autostart.lua` |
+| **Keybinding** | `~/.config/hypr/bindings.lua` |
+| **Window Rules** | `~/.config/hypr/looknfeel.lua` |
+
 ---
 
-## 8. Application Modes
+## 9. Application Modes
 
-Aplikasi memiliki 3 mode yang ditangani di `event.rs`:
+Aplikasi memiliki 3 mode utama yang ditangani di `src/event.rs`:
 
 | Mode | Trigger | Behavior |
 |---|---|---|
 | `Normal` | Default | Navigasi, search, copy, pin, delete |
 | `ConfirmDeleteAll` | `Ctrl+Alt+d` | Dialog yes/no, hanya terima `y`/`n`/`Esc` |
-| `Help` | `Ctrl+h` | Tampilkan help, hanya terima `Esc`/`q`/`Ctrl+h` untuk keluar |
+| `Help` | `Ctrl+h` | Menampilkan help, hanya menerima input untuk keluar |
 
 ---
 
-## 9. Arsitektur & Pola Kode
+## 10. Keybinding Aplikasi (Internal TUI)
 
-- **State terpusat:** Semua state aplikasi ada di `App` struct (`app.rs`)
-- **Event-driven:** `event.rs` menangani input → memanggil method di `App`
-- **UI stateless:** Semua widget di `ui/` hanya membaca `&App`, tidak mengubah state
-- **External process:** Interaksi dengan `cliphist` dan `wl-copy` melalui `std::process::Command` dengan stdin pipe (menghindari shell injection)
-- **Config cascade:** Load dari `~/.config/edClipManager/config.toml`, fallback ke embedded default (`include_str!`)
-- **Pin independence:** Pin teks disimpan dengan konten lengkap (bukan hanya ID cliphist), sehingga tetap bisa di-copy meskipun history cliphist sudah terhapus
+| Key | Fungsi |
+|---|---|
+| `Ctrl+j` / `Ctrl+k` | Navigasi bawah / atas |
+| `↓` / `↑` | Navigasi bawah / atas |
+| `Enter` | Copy item terpilih ke clipboard lalu keluar |
+| `Ctrl+Space` | Toggle mark |
+| `Ctrl+p` | Pin / unpin item terpilih atau semua yang di-mark |
+| `Ctrl+d` | Delete item terpilih atau semua yang di-mark |
+| `Ctrl+Alt+d` | Delete semua item di tab aktif |
+| `Tab` | Switch tab Clipboard / Pin |
+| `Ctrl+h` | Toggle help |
+| `Esc` / `q` | Keluar aplikasi atau menutup dialog/help |
+| `←` / `→` | Geser cursor search |
+| `Backspace` / `Delete` | Hapus karakter search |
+| Ketik karakter | Filter/search selalu aktif |
+
+### Launcher global Hyprland
+| Key | Fungsi |
+|---|---|
+| `Super + Ctrl + V` | Membuka `edclipmanager` di Kitty |
 
 ---
 
-## 10. Gaya Bantuan yang Diinginkan
+## 11. Arsitektur & Pola Kode
 
-- **Prioritas utama:** Jika AI memiliki kemampuan membaca/menulis file secara langsung, lakukan itu langsung.
-- **Jika tidak bisa:** AI harus memberi solusi dalam bentuk perintah terminal yang siap dijalankan (copy-paste-run). Gunakan:
-  - `cat << 'EOF' > path/file` untuk membuat/mengganti file
-  - `sed -i` untuk edit sebagian baris
-  - `mkdir -p` untuk membuat direktori
-  - Script `bash` atau `python` sekali jalan untuk perubahan kompleks
-- **HINDARI** instruksi manual seperti "buka file ini lalu edit baris ke-50"
-- Semua path file dalam command harus **relatif terhadap root proyek** kecuali file sistem (Hyprland config)
+- **State terpusat:** semua state aplikasi ada di `App` (`src/app.rs`)
+- **Event-driven:** `src/event.rs` menangani input lalu memanggil method di `App`
+- **UI stateless:** modul di `src/ui/` hanya membaca `&App`, tidak mengubah state
+- **External process:** interaksi dengan `cliphist` dan `wl-copy` memakai `std::process::Command`
+- **No shell injection:** operasi clipboard ditulis dengan pipe/process langsung, bukan `sh -c`
+- **Config cascade:** load dari `~/.config/edClipManager/config.toml`, fallback ke default embedded via `include_str!`
+- **Pin independence:**
+  - pin teks disimpan dengan konten penuh sehingga tetap bisa di-copy walau history `cliphist` hilang
+  - pin gambar masih bergantung pada `cliphist_id` untuk restore binary data
+- **Pin ordering:** `PinStorage` memelihara urutan pin terbaru ke terlama melalui `pinned_at`
 
 ---
 
-## 11. Aturan Keras (HARD RULES) — DILARANG DILANGGAR
+## 12. Perilaku Kode yang Perlu Diketahui AI
+
+### `src/clipboard/cliphist.rs`
+- `cliphist list` dipakai untuk memuat history
+- `cliphist decode` dipakai untuk memulihkan isi penuh
+- `wl-copy` dipakai untuk menulis kembali ke clipboard
+- delete item dilakukan lewat stdin pipe ke `cliphist delete`
+- wipe all memakai `cliphist wipe`
+
+### `src/clipboard/pin.rs`
+- `PinnedItem` memiliki field:
+  - `cliphist_id`
+  - `content`
+  - `is_image`
+  - `image_size`
+  - `pinned_at`
+- Saat load, pin disort **descending** berdasarkan `pinned_at`
+- Saat pin baru ditambahkan, item baru diletakkan di urutan paling atas
+
+### `src/app.rs`
+- `copy_selected_and_quit()` memiliki logika berbeda untuk tab Clipboard vs Pin
+- Clipboard tab:
+  - copy selalu lewat `cliphist decode`
+- Pin tab:
+  - teks memakai konten tersimpan
+  - gambar tetap memakai `cliphist decode`
+
+---
+
+## 13. Gaya Bantuan yang Diinginkan
+
+### Prioritas bantuan
+1. Jika AI bisa membaca/menulis file langsung, lakukan itu
+2. Jika tidak bisa, berikan **perintah terminal yang siap dijalankan**
+3. Hindari instruksi edit manual yang menyuruh user membuka editor dan mengubah baris tertentu
+
+### Format command yang diinginkan
+- `cat << 'EOF' > path/file` untuk membuat atau mengganti file
+- `sed -i` untuk edit kecil
+- `mkdir -p` untuk direktori
+- script `bash` atau `python` sekali jalan untuk perubahan kompleks
+
+### Aturan path
+- Semua path command harus **relatif terhadap root proyek**
+- Kecuali file sistem seperti config Hyprland di `~/.config/hypr/...`
+
+### Cara menyajikan patch
+- Jika perubahan kecil dan aman, boleh patch 1 file penuh dengan heredoc
+- Jika perubahan menyentuh banyak file, sajikan per file dengan command terpisah
+- Jangan menyajikan pseudo-code; sajikan kode final
+
+---
+
+## 14. Aturan Keras (HARD RULES) — DILARANG DILANGGAR
 
 - ❌ **DILARANG** berasumsi tentang isi file jika file belum diberikan
 - ❌ **DILARANG** berasumsi tentang struktur proyek jika belum diberikan
 - ❌ **DILARANG** menulis keybinding Hyprland ke `hyprland.conf` — harus ke `bindings.conf`
-- ❌ **DILARANG** menyarankan tools berbasis X11 (`xdotool`, `xprop`, `xclip`, `xsel`) — sistem ini Wayland
+- ❌ **DILARANG** menyarankan tool berbasis X11 seperti:
+  - `xdotool`
+  - `xprop`
+  - `xclip`
+  - `xsel`
 - ❌ **DILARANG** memaksa workflow edit manual jika command terminal bisa diberikan
 - ❌ **DILARANG** merombak arsitektur proyek tanpa izin eksplisit
 - ❌ **DILARANG** menambahkan dependency baru ke `Cargo.toml` tanpa konfirmasi
 - ❌ **DILARANG** mengubah release profile tanpa konfirmasi
-- ❌ **DILARANG** mengabaikan konteks di file ini — jika ada konflik antara pengetahuan umum AI dan file ini, **IKUTI FILE INI**
-- ✅ Jika ragu, **TANYAKAN** sebelum membuat perubahan
-- ✅ Proyek ini sudah berjalan (v1). Tugas AI adalah **memperbaiki/mengembangkan**, bukan membangun ulang
+- ❌ **DILARANG** mengabaikan konteks Wayland/Hyprland/Omarchy pada file ini
+- ❌ **DILARANG** menganggap `AI_CONTEXT.md` sudah ada di dalam `repomix-output.xml`
+- ✅ Jika ragu, **TANYAKAN**
+- ✅ Proyek ini sudah berjalan (v1.x). Tugas AI adalah **memperbaiki/mengembangkan**, bukan membangun ulang
 
 ---
 
-## 12. Instruksi untuk AI di Sesi Baru
+## 15. Instruksi untuk AI di Sesi Baru
 
-1. **BACA** seluruh konteks di atas sebelum memberikan saran apapun
-2. **PAHAMI** struktur kode, arsitektur, dan pola yang sudah ada
-3. **PATUHI** semua aturan keras di Bagian 11
-4. **GUNAKAN** hanya tools Wayland yang tersedia di Bagian 5
-5. **SESUAIKAN** semua path dengan yang tertulis di Bagian 7
-6. **BERIKAN** solusi dalam format command terminal siap eksekusi (Bagian 10)
-7. Jika konteks kode belum cukup, **MINTA** file yang dibutuhkan secara spesifik — jangan menebak
+1. **BACA** seluruh `AI_CONTEXT.md` ini sebelum menganalisis repo
+2. **PAHAMI** bahwa user biasanya akan mengirim:
+   - `AI_CONTEXT.md`
+   - lalu `repomix-output.xml`
+3. **PATUHI** semua hard rules di Bagian 14
+4. **GUNAKAN** hanya tool Wayland yang sesuai
+5. **PRIORITASKAN** file `.conf` Hyprland pada sistem user ini kecuali user memberi konteks live lain
+6. **JANGAN MENEBak** isi file yang belum diberikan
+7. **BERIKAN** solusi dalam bentuk command terminal siap eksekusi bila AI tidak bisa menulis file langsung
+8. Jika konteks belum cukup, **MINTA file yang spesifik**
+9. Jika ada konflik antara pengetahuan umum AI dan file ini, **IKUTI FILE INI**
+
 ---
+
+## 16. Ringkasan Singkat untuk AI
+
+Jika hanya mengingat sedikit, ingat ini:
+
+- Sistem user: **Wayland + Hyprland + Bash + Kitty**
+- Proyek: **Rust TUI clipboard manager** berbasis `cliphist`
+- Keybinding Hyprland: **hanya di `~/.config/hypr/bindings.conf`**
+- Jangan sarankan tool X11
+- Jangan tambah dependency tanpa izin
+- Jangan ubah arsitektur tanpa izin
+- Tab Pin harus **sorted terbaru → terlama**
+- Jika tidak bisa edit langsung, berikan **command terminal siap pakai**
